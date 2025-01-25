@@ -5,8 +5,6 @@ from common import DATABASE_NAME
 #Example to how insert: https://www.w3schools.com/python/python_mysql_insert.asp
 # https://stackoverflow.com/questions/31684375/automatically-create-file-requirements-txt
 
-VALID_TABLES = {"new_table_test", }
-
 mydb = mysql.connector.connect(
     host="127.0.0.2",
     port="3333",

@@ -1,14 +1,10 @@
 import requests
 import mysql.connector
-from common import headers
+from common import headers, VALID_TABLES
 
 #Every function <funcX> is responsiable to populate one table
 #Example to how insert: https://www.w3schools.com/python/python_mysql_insert.asp
 
-
-VALID_TABLES = {
-    "new_table_test": ["idnew_table_test", "new_table_testcol", "new_table_testcol1"],
-}
 
 mydb = mysql.connector.connect(
     host="127.0.0.2",
