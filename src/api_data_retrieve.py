@@ -1,16 +1,15 @@
 import requests
 import mysql.connector
+from common import headers
 
 #Every function <funcX> is responsiable to populate one table
 #Example to how insert: https://www.w3schools.com/python/python_mysql_insert.asp
 
-headers = {
-    "accept": "application/json",
-    "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJiZWUyNWMxYWM5NzM5MmQzMjdlYzg3NDExNzVlNjczMSIsIm5iZiI6MTczNzcxNjM2NC45NTUwMDAyLCJzdWIiOiI2NzkzNzI4Y2ZlYWM5YjcxMjYyMzhlZmUiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.4gAL2BOokc3z0rsY9utH5zkfAsw4D7zjdafxmKuuKBA"
-}
+
 VALID_TABLES = {
     "new_table_test": ["idnew_table_test", "new_table_testcol", "new_table_testcol1"],
 }
+
 mydb = mysql.connector.connect(
     host="127.0.0.2",
     port="3333",

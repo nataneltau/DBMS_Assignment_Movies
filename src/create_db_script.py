@@ -1,11 +1,10 @@
 import mysql.connector
+from common import DATABASE_NAME
 
 #Every function <funcX> is responsiable to populate one table
 #Example to how insert: https://www.w3schools.com/python/python_mysql_insert.asp
 
 VALID_TABLES = {"new_table_test", }
-
-DATABASE_NAME = "natanel"
 
 mydb = mysql.connector.connect(
     host="127.0.0.2",
