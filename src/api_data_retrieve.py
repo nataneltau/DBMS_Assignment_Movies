@@ -1,6 +1,6 @@
 import requests
 import mysql.connector
-from common import headers, VALID_TABLES
+from common import headers, VALID_TABLES, DATABASE_NAME
 
 #Every function <funcX> is responsiable to populate one table
 #Example to how insert: https://www.w3schools.com/python/python_mysql_insert.asp
@@ -11,7 +11,7 @@ mydb = mysql.connector.connect(
     port="3333",
     user="natanel",
     password="nat72836",
-    database="natanel"
+    database={DATABASE_NAME}
 )
 
 
