@@ -1,4 +1,5 @@
 DATABASE_NAME = "natanel"
+
 VALID_TABLES = {
     "new_table_test": ["idnew_table_test", "new_table_testcol", "new_table_testcol1"],
 }

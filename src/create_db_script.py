@@ -11,34 +11,33 @@ mydb = mysql.connector.connect(
     port="3333",
     user="natanel",
     password="nat72836",
-)
-
-
-cursor = mydb.cursor()
-
-# insert the next line in a try catch block, if the database already exist, print an error and continue, else thorw the error
-try:
-    cursor.execute(f"CREATE DATABASE {DATABASE_NAME}")
-except mysql.connector.Error as err:
-    if err.errno == mysql.connector.errorcode.ER_DB_CREATE_EXISTS:
-        print(f"Database {DATABASE_NAME} already exists.")
-    else:
-        raise
-
-mydb.close()
-
-mydb = mysql.connector.connect(
-    host="127.0.0.2",
-    port="3333",
-    user="natanel",
-    password="nat72836",
     database=DATABASE_NAME
 )
 
 cursor = mydb.cursor()
 
 #Use https://www.w3schools.com/python/python_mysql_create_table.asp
-# 1. production_company
+# 1. country
+try:
+    cursor.execute("""
+        CREATE TABLE country (
+            country_id INT AUTO_INCREMENT PRIMARY KEY,
+            name       VARCHAR(255) NOT NULL,
+            iso_code   VARCHAR(3),
+            region     VARCHAR(255),
+            population BIGINT,
+            gdp        DECIMAL(15,2)
+        )
+    """)
+    print("Table 'country' created successfully.")
+except mysql.connector.Error as err:
+    if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
+        print("Table 'country' already exists.")
+    else:
+        raise
+
+
+# 2. production_company
 try:
     cursor.execute("""
         CREATE TABLE production_company (
@@ -59,25 +58,6 @@ try:
 except mysql.connector.Error as err:
     if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
         print("Table 'production_company' already exists.")
-    else:
-        raise
-
-# 2. country
-try:
-    cursor.execute("""
-        CREATE TABLE country (
-            country_id INT AUTO_INCREMENT PRIMARY KEY,
-            name       VARCHAR(255) NOT NULL,
-            iso_code   VARCHAR(3),
-            region     VARCHAR(255),
-            population BIGINT,
-            gdp        DECIMAL(15,2)
-        )
-    """)
-    print("Table 'country' created successfully.")
-except mysql.connector.Error as err:
-    if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-        print("Table 'country' already exists.")
     else:
         raise
 
@@ -162,4 +142,31 @@ except mysql.connector.Error as err:
     else:
         raise
 
+# Create an index on the movie table for faster lookup of production_company_id
+try:
+    cursor.execute("""
+        CREATE INDEX idx_movie_production_company 
+        ON movie(production_company_id)
+    """)
+    print("Index 'idx_movie_production_company' created successfully.")
+except mysql.connector.Error as err:
+    if err.errno == errorcode.ER_DUP_KEYNAME:
+        print("Index 'idx_movie_production_company' already exists.")
+    else:
+        print(f"Error creating index: {err}")
+
+# Create FULLTEXT index on the title column of the movie table
+try:
+    cursor.execute("""
+        CREATE FULLTEXT INDEX idx_movie_title ON movie(title);
+    """)
+    print("Index 'idx_movie_title' created successfully.")
+
+except mysql.connector.Error as err:
+    if err.errno == errorcode.ER_DUP_KEYNAME:
+        print("Index 'idx_movie_title' already exists.")
+    else:
+        print(f"Error creating index: {err}")
+
+cursor.close()
 mydb.close()

@@ -2,26 +2,25 @@ import mysql.connector
 from mysql.connector import errorcode
 from common import DATABASE_NAME
 
-mydb = mysql.connector.connect(
-    host="127.0.0.2",
-    port="3333",
-    user="natanel",
-    password="nat72836",
-    database={DATABASE_NAME}
-)
-
-
-def get_total_revenue_for_company(company_name):
+def query_1(company_name):
     """
+    get_total_revenue_for_company -
     Returns the total revenue for a given production company by summing
     (box_office - budget) for all its movies. May return negative if
     budgets exceed box_office totals.
 
     :param company_name: The name of the production company (string).
     :return: A float (total revenue) or None if the company doesn't exist
-             or has no movies.
+        or has no movies.
     """
     try:
+        mydb = mysql.connector.connect(
+            host="127.0.0.2",
+            port="3333",
+            user="natanel",
+            password="nat72836",
+            database={DATABASE_NAME}
+        )
         cursor = mydb.cursor()
 
         # Define our query using a parameter placeholder (%s)
@@ -49,3 +48,51 @@ def get_total_revenue_for_company(company_name):
     finally:
         cursor.close()
         mydb.close()
+
+
+def query_2(movie_name):
+    """
+    get_top_profitable_movies_by_name
+    Searches for the top 10 most profitable movies containing the given movie name.
+
+    :param movie_name: The movie name keyword to search for (string).
+    :return: A list of tuples (title, production_company, revenue) sorted by profitability.
+    """
+    try:
+        # Establish database connection
+        mydb = mysql.connector.connect(
+            host="127.0.0.2",
+            port="3333",
+            user="natanel",
+            password="nat72836",
+            database={DATABASE_NAME}
+        )
+        cursor = mydb.cursor()
+
+        # Define the full-text search query
+        query = """
+            SELECT 
+                m.title,
+                pc.name AS production_company,
+                (m.box_office - m.budget) AS revenue
+            FROM movie m
+            JOIN production_company pc ON m.production_company_id = pc.production_company_id
+            WHERE MATCH(m.title) AGAINST (%s IN NATURAL LANGUAGE MODE)
+            ORDER BY revenue DESC
+            LIMIT 10;
+        """
+
+        cursor.execute(query, (movie_name,))
+        results = cursor.fetchall()
+
+        return results  # List of (title, production_company, revenue)
+
+    except mysql.connector.Error as err:
+        print(f"Database error: {err}")
+        return []
+    finally:
+        # Close cursor and connection
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'mydb' in locals() and mydb.is_connected():
+            mydb.close()
