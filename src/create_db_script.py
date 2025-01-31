@@ -104,6 +104,7 @@ try:
             last_name      VARCHAR(100) NOT NULL,
             date_of_birth  DATE,
             nationality    VARCHAR(100),
+            gender         ENUM('Male', 'Female', 'Other') NOT NULL,
             total_movies   INT DEFAULT 0,
             awards_won     INT DEFAULT 0
         )
@@ -165,6 +166,19 @@ try:
 except mysql.connector.Error as err:
     if err.errno == errorcode.ER_DUP_KEYNAME:
         print("Index 'idx_movie_title' already exists.")
+    else:
+        print(f"Error creating index: {err}")
+
+# Create index on production_company.name
+try:
+    cursor.execute("""
+        CREATE INDEX idx_production_company_name ON production_company(name);
+    """)
+    print("Index 'idx_production_company_name' created successfully.")
+
+except mysql.connector.Error as err:
+    if err.errno == errorcode.ER_DUP_KEYNAME:
+        print("Index 'idx_production_company_name' already exists.")
     else:
         print(f"Error creating index: {err}")
 

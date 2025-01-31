@@ -96,3 +96,51 @@ def query_2(movie_name):
             cursor.close()
         if 'mydb' in locals() and mydb.is_connected():
             mydb.close()
+
+def query_3(production_company_name):
+    """
+    get_top_countries_by_movies:
+    Returns the top 5 countries where a given production company has produced the most movies.
+
+    :param production_company_name: The name of the production company (string).
+    :return: A list of tuples (country_name, movie_count) ordered by the most movies.
+    """
+    try:
+        # Establish database connection
+        mydb = mysql.connector.connect(
+            host="127.0.0.2",
+            port="3333",
+            user="natanel",
+            password="nat72836",
+            database={DATABASE_NAME}
+        )
+        cursor = mydb.cursor()
+
+        # Define the optimized query
+        query = """
+            SELECT 
+                c.name AS country_name,
+                COUNT(m.movie_id) AS movie_count
+            FROM movie m
+            JOIN production_company pc ON m.production_company_id = pc.production_company_id
+            JOIN country c ON m.country_id = c.country_id
+            WHERE pc.name = %s
+            GROUP BY c.country_id, c.name
+            ORDER BY movie_count DESC
+            LIMIT 5;
+        """
+
+        cursor.execute(query, (production_company_name,))
+        results = cursor.fetchall()
+
+        return results  # List of (country_name, movie_count)
+
+    except mysql.connector.Error as err:
+        print(f"Database error: {err}")
+        return []
+    finally:
+        # Close cursor and connection
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'mydb' in locals() and mydb.is_connected():
+            mydb.close()
