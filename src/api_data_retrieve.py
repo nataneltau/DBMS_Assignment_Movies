@@ -28,7 +28,7 @@ def get_all_genres():
     return response.json()
 
 
-def get_movies_by_genre(genre_id):
+def get_movies_by_genre(genre_id, page=1):
     """
     Fetch movies filtered by a specific genre.
 
@@ -40,7 +40,7 @@ def get_movies_by_genre(genre_id):
     :raises HTTPError: If the request status code is 4xx or 5xx.
     """
     url = f"{BASE_URL}/discover/movie"
-    params = {"with_genres": str(genre_id)}
+    params = {"with_genres": str(genre_id), "page": page}
     response = requests.get(url, headers=headers, params=params)
     response.raise_for_status()
     return response.json()

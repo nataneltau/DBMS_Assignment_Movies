@@ -6,7 +6,7 @@ def create_db():
     """
     Connects to MySQL, creates (if needed) a database, and then creates the minimal tables
     and columns actually used in the queries. Also creates FULLTEXT indexes on title and
-    character_name for queries #3 and #4.
+    character_name_or_job_title for queries #3 and #4.
     """
 
     print("Creating the database and tables...")
@@ -112,10 +112,10 @@ def create_db():
         #
         #  Used in queries:
         #   - Query #1: movie_id, person_id, type='cast'
-        #   - Query #4: FULLTEXT on character_name
+        #   - Query #4: FULLTEXT on character_name_or_job_title
         #   - Query #5: EXISTS(...) type='cast' and p.popularity>10
         #
-        #  Relevant columns: movie_id, person_id, type, character_name
+        #  Relevant columns: movie_id, person_id, type, character_name_or_job_title
         #  (We omit credit_id, department, job, etc. since not used by queries.)
         # ---------------------------------------------------------------------
         print("Creating 'movie_credits' table...")
@@ -124,7 +124,7 @@ def create_db():
                 movie_id INT,
                 person_id INT,
                 type ENUM('cast', 'crew') NOT NULL,  -- Added 'type' column
-                character_name VARCHAR(255),
+                character_name_or_job_title VARCHAR(255),
                 FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
                 FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE
             ) ENGINE=InnoDB;
@@ -136,11 +136,12 @@ def create_db():
         # Create only the necessary FULLTEXT indexes
         #
         #  1) For query_3 on movies.title
-        #  2) For query_4 on movie_credits.character_name
+        #  2) For query_4 on movie_credits.character_name_or_job_title
         #
         #  We do not create any extra indexes (e.g. on popularity)
         #  unless they are needed for a specific FULLTEXT or performance reason.
         # ---------------------------------------------------------------------
+
         # 1) FULLTEXT index on movies.title
         try:
             cursor.execute("""
@@ -155,16 +156,56 @@ def create_db():
             # etc.
             print(f"Error creating FULLTEXT index on movies.title: {e}")
 
-        # 2) FULLTEXT index on movie_credits.character_name
+        # 2) FULLTEXT index on movie_credits.character_name_or_job_title
         try:
             cursor.execute("""
                 ALTER TABLE movie_credits
-                ADD FULLTEXT idx_character_name (character_name);
+                ADD FULLTEXT idx_character_name_or_job_title (character_name_or_job_title);
             """)
             conn.commit()
-            print("FULLTEXT index on 'movie_credits.character_name' created successfully.")
+            print("FULLTEXT index on 'movie_credits.character_name_or_job_title' created successfully.")
         except Error as e:
-            print(f"Error creating FULLTEXT index on movie_credits.character_name: {e}")
+            print(f"Error creating FULLTEXT index on movie_credits.character_name_or_job_title: {e}")
+
+        # ---------------------------------------------------------------------
+        # 3) Composite index on (movie_id) in movie_credits
+        # ---------------------------------------------------------------------
+        try:
+            cursor.execute("""
+                CREATE INDEX idx_credits_movie
+                    ON movie_credits (movie_id);
+            """)
+            conn.commit()
+            print("Index idx_credits_movie on movie_credits created successfully.")
+        except Error as e:
+            print(f"Error creating idx_credits_movie on movie_credits: {e}")
+
+        # ---------------------------------------------------------------------
+        # 4) Index on persons.popularity
+        # ---------------------------------------------------------------------
+        try:
+            cursor.execute("""
+                CREATE INDEX idx_persons_popularity
+                    ON persons (popularity);
+            """)
+            conn.commit()
+            print("Index idx_persons_popularity on persons created successfully.")
+        except Error as e:
+            print(f"Error creating idx_persons_popularity on persons: {e}")
+
+        # ---------------------------------------------------------------------
+        # 5) Index on movies.popularity
+        # ---------------------------------------------------------------------
+        try:
+            cursor.execute("""
+                CREATE INDEX idx_movies_popularity
+                    ON movies (popularity);
+            """)
+            conn.commit()
+            print("Index idx_movies_popularity on movies created successfully.")
+        except Error as e:
+            print(f"Error creating idx_movies_popularity on movies: {e}")
+
 
         conn.commit()
         print("All relevant tables (with minimal columns) have been created successfully.")

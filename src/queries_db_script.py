@@ -188,9 +188,9 @@ def query_3(substring):
 
 def query_4(substring):
     """
-    search_movies_by_character_name
-    Searches the 'character_name' in movie_credits using a FULLTEXT index.
-    Returns up to 100 DISTINCT movies (id, title) that have a matching character_name.
+    search_movies_by_character_name_or_job_title
+    Searches the 'character_name_or_job_title' in movie_credits using a FULLTEXT index.
+    Returns up to 100 DISTINCT movies (id, title) that have a matching character_name_or_job_title.
     """
     conn = get_db_connection()
     if not conn:
@@ -203,7 +203,7 @@ def query_4(substring):
             SELECT DISTINCT m.id, m.title
             FROM movie_credits mc
             JOIN movies m ON mc.movie_id = m.id
-            WHERE MATCH(mc.character_name) AGAINST (%s IN BOOLEAN MODE)
+            WHERE MATCH(mc.character_name_or_job_title) AGAINST (%s IN BOOLEAN MODE)
             LIMIT 100;
         """
         
@@ -224,10 +224,11 @@ def query_4(substring):
 
     return results
 
-def query_5():
+def query_5(min_popularity: int):
     """
     Lists all movies that have at least one cast member
-    with popularity > 10.
+    with popularity > the specified min_popularity.
+    Only integer pop values are expected here.
     """
     conn = get_db_connection()
     if not conn:
@@ -245,15 +246,21 @@ def query_5():
                 JOIN persons p ON mc.person_id = p.id
                 WHERE mc.movie_id = m.id
                   AND mc.type = 'cast'
-                  AND p.popularity > 10
+                  AND p.popularity > %s
             );
         """
 
-        cursor.execute(sql)
-        return cursor.fetchall()
+        # Here, min_popularity is an int,
+        # which is valid for this parameterized query.
+        cursor.execute(sql, (min_popularity,))
+        results = cursor.fetchall()
+        return results
 
     except Error as e:
-        print(f"Error: {e}")
+        print(f"Error in query_5: {e}")
+        return []
     finally:
-        if cursor: cursor.close()
-        if conn and conn.is_connected(): conn.close()
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
