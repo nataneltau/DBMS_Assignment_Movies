@@ -2,7 +2,7 @@ import mysql.connector
 from mysql.connector import Error
 from contextlib import redirect_stdout
 from common import DATABASE_NAME
-
+import sys
 
 def get_db_connection():
     """
@@ -15,7 +15,7 @@ def get_db_connection():
             port="3333",
             user="natanel",
             password="nat72836",
-            database={DATABASE_NAME}
+            database=DATABASE_NAME
         )
         return conn
     except Error as e:
@@ -49,19 +49,20 @@ def query_1():
     cursor = conn.cursor(dictionary=True)
     try:
         sql = """
-            SELECT m.title AS movie_title,
-                   p.name AS actor_name,
-                   p.popularity AS actor_popularity
+            SELECT DISTINCT p.id AS person_id,
+                p.name AS actor_name,
+                p.popularity AS actor_popularity,
+                m.title AS movie_title
             FROM movies m
             JOIN movie_credits mc ON m.id = mc.movie_id
             JOIN persons p ON mc.person_id = p.id
             WHERE mc.type = 'cast'
-              AND m.id = (
-                  SELECT id
-                  FROM movies
-                  ORDER BY popularity DESC
-                  LIMIT 1
-              )
+            AND m.id = (
+                SELECT id
+                FROM movies
+                ORDER BY popularity DESC
+                LIMIT 1
+            )
             ORDER BY p.popularity DESC
             LIMIT 10;
         """
@@ -264,3 +265,51 @@ def query_5(min_popularity: int):
             cursor.close()
         if conn and conn.is_connected():
             conn.close()
+
+
+def main():
+    # Query #1: Single most popular movie -> top 10 most popular cast
+    print("\n--- Query #1 Demo ---")
+    res1 = query_1()
+    print(f"Found {len(res1)} rows for query_1:")
+    for row in res1:
+        print(row)
+
+    # Query #2: For each genre: (genre_name, movie_count, most_popular_movie)
+    print("\n--- Query #2 Demo ---")
+    res2 = query_2()
+    print(f"Found {len(res2)} rows for query_2:")
+    for row in res2[:5]:  # just show first 5 for demo
+        print(row)
+
+    # Query #3: Full-text search in movies.title
+    print("\n--- Query #3 Demo ---")
+    demo_substring_3 = "Batman"  # example substring
+    res3 = query_3(demo_substring_3)
+    print(f"Found {len(res3)} rows for query_3 (search = '{demo_substring_3}'):")
+    for row in res3:
+        print(row)
+
+    # Query #4: Full-text search in movie_credits.character_name_or_job_title
+    print("\n--- Query #4 Demo ---")
+    demo_substring_4 = "Robin"  # example substring
+    res4 = query_4(demo_substring_4)
+    print(f"Found {len(res4)} rows for query_4 (search = '{demo_substring_4}'):")
+    for row in res4:
+        print(row)
+
+    # Query #5: Movies with at least one cast member whose popularity > min_popularity
+    print("\n--- Query #5 Demo ---")
+    min_pop = 10
+    res5 = query_5(min_pop)
+    print(f"Found {len(res5)} rows for query_5 (popularity > {min_pop}):")
+    for row in res5[:5]:  # just show first 5 for demo
+        print(row)
+
+
+if __name__ == '__main__':
+    # Simple redirection trick to also capture output if needed:
+    # with open('demo_output.txt', 'w') as f, redirect_stdout(f):
+    #     main()
+    
+    main()
