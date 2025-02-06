@@ -1,186 +1,185 @@
 import mysql.connector
-from mysql.connector import errorcode
+from mysql.connector import Error
 from common import DATABASE_NAME
 
-#Every function <funcX> is responsiable to populate one table
-#Example to how insert: https://www.w3schools.com/python/python_mysql_insert.asp
-# https://stackoverflow.com/questions/31684375/automatically-create-file-requirements-txt
+def create_db():
+    """
+    Connects to MySQL, creates (if needed) a database, and then creates the minimal tables
+    and columns actually used in the queries. Also creates FULLTEXT indexes on title and
+    character_name for queries #3 and #4.
+    """
 
-mydb = mysql.connector.connect(
-    host="127.0.0.2",
-    port="3333",
-    user="natanel",
-    password="nat72836",
-    database=DATABASE_NAME
-)
+    print("Creating the database and tables...")
 
-cursor = mydb.cursor()
-
-#Use https://www.w3schools.com/python/python_mysql_create_table.asp
-# 1. country
-try:
-    cursor.execute("""
-        CREATE TABLE country (
-            country_id INT AUTO_INCREMENT PRIMARY KEY,
-            name       VARCHAR(255) NOT NULL,
-            iso_code   VARCHAR(3),
-            region     VARCHAR(255),
-            population BIGINT,
-            gdp        DECIMAL(15,2)
+    conn = None
+    cursor = None
+    try:
+        # 1) Connect to the server (if DATABASE_NAME doesn't exist, we still specify it for convenience)
+        conn = mysql.connector.connect(
+            host="127.0.0.2",
+            port="3333",
+            user="natanel",
+            password="nat72836",
+            database=DATABASE_NAME
         )
-    """)
-    print("Table 'country' created successfully.")
-except mysql.connector.Error as err:
-    if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-        print("Table 'country' already exists.")
-    else:
-        raise
+        if conn.is_connected():
+            print("Successfully connected to the MySQL server.")
+
+        # 2) Create the database if it does not exist
+        cursor = conn.cursor()
+        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DATABASE_NAME};")
+        print(f"Database '{DATABASE_NAME}' is ready (created or already exists).")
+
+        # 3) Use the newly created or existing database
+        cursor.execute(f"USE {DATABASE_NAME};")
+
+        # ---------------------------------------------------------------------
+        # TABLE: movies
+        #
+        #  Used in queries:
+        #   - Query #1: SELECT m.title, m.popularity, ...
+        #   - Query #2: SELECT m.id, m.popularity, ...
+        #   - Query #3: FULLTEXT on m.title
+        #   - Query #5: SELECT m.id, m.title
+        #  Relevant columns: id, title, popularity
+        # ---------------------------------------------------------------------
+        print("Creating 'movies' table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS movies (
+                id INT PRIMARY KEY,               -- Remove AUTO_INCREMENT; use TMDb ID
+                title VARCHAR(255),
+                popularity DECIMAL(8,3)
+            ) ENGINE=InnoDB;
+        """)
+        print("'movies' table created or already exists.")
+
+        # ---------------------------------------------------------------------
+        # TABLE: genres
+        #
+        #  Used in query #2: SELECT g.id, g.name
+        # ---------------------------------------------------------------------
+        print("Creating 'genres' table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS genres (
+                id INT PRIMARY KEY,
+                name VARCHAR(50)
+            ) ENGINE=InnoDB;
+        """)
+        print("'genres' table created or already exists.")
+
+        # ---------------------------------------------------------------------
+        # TABLE: movie_genres
+        #
+        #  Used in query #2 to join movies and genres:
+        #   SELECT ... FROM genres g
+        #   JOIN movie_genres mg ON mg.genre_id = g.id
+        #   JOIN movies m ON m.id = mg.movie_id
+        #
+        #  Relevant columns: movie_id, genre_id
+        # ---------------------------------------------------------------------
+        print("Creating 'movie_genres' table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS movie_genres (
+                movie_id INT,
+                genre_id INT,
+                PRIMARY KEY (movie_id, genre_id),
+                FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
+                FOREIGN KEY (genre_id) REFERENCES genres(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB;
+        """)
+        print("'movie_genres' table created or already exists.")
+
+        # ---------------------------------------------------------------------
+        # TABLE: persons
+        #
+        #  Used in queries:
+        #   - Query #1: SELECT p.id, p.name, p.popularity
+        #   - Query #5: SELECT p.popularity
+        #  Relevant columns: id, name, popularity
+        # ---------------------------------------------------------------------
+        print("Creating 'persons' table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS persons (
+                id INT PRIMARY KEY,
+                name VARCHAR(255),
+                popularity DECIMAL(8,3)
+            ) ENGINE=InnoDB;
+        """)
+        print("'persons' table created or already exists.")
+
+        # ---------------------------------------------------------------------
+        # TABLE: movie_credits
+        #
+        #  Used in queries:
+        #   - Query #1: movie_id, person_id, type='cast'
+        #   - Query #4: FULLTEXT on character_name
+        #   - Query #5: EXISTS(...) type='cast' and p.popularity>10
+        #
+        #  Relevant columns: movie_id, person_id, type, character_name
+        #  (We omit credit_id, department, job, etc. since not used by queries.)
+        # ---------------------------------------------------------------------
+        print("Creating 'movie_credits' table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS movie_credits (
+                movie_id INT,
+                person_id INT,
+                type ENUM('cast', 'crew') NOT NULL,  -- Added 'type' column
+                character_name VARCHAR(255),
+                FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
+                FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB;
+        """)
+        print("'movie_credits' table created or already exists.")
 
 
-# 2. production_company
-try:
-    cursor.execute("""
-        CREATE TABLE production_company (
-            production_company_id INT AUTO_INCREMENT PRIMARY KEY,
-            name                  VARCHAR(255) NOT NULL,
-            founded_year          YEAR,
-            headquarters_country_id INT,
-            total_movies_produced INT DEFAULT 0,
+        # ---------------------------------------------------------------------
+        # Create only the necessary FULLTEXT indexes
+        #
+        #  1) For query_3 on movies.title
+        #  2) For query_4 on movie_credits.character_name
+        #
+        #  We do not create any extra indexes (e.g. on popularity)
+        #  unless they are needed for a specific FULLTEXT or performance reason.
+        # ---------------------------------------------------------------------
+        # 1) FULLTEXT index on movies.title
+        try:
+            cursor.execute("""
+                ALTER TABLE movies
+                ADD FULLTEXT idx_movies_title (title);
+            """)
+            conn.commit()
+            print("FULLTEXT index on 'movies.title' created successfully.")
+        except Error as e:
+            # Error 1061 = duplicate key name
+            # Error 1795 = InnoDB doesn't support if columns are not the right format
+            # etc.
+            print(f"Error creating FULLTEXT index on movies.title: {e}")
 
-            CONSTRAINT fk_production_company_country
-                FOREIGN KEY (headquarters_country_id)
-                REFERENCES country(country_id)
-                ON DELETE SET NULL
-                ON UPDATE CASCADE
-        )
-    """)
-    print("Table 'production_company' created successfully.")
-except mysql.connector.Error as err:
-    if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-        print("Table 'production_company' already exists.")
-    else:
-        raise
+        # 2) FULLTEXT index on movie_credits.character_name
+        try:
+            cursor.execute("""
+                ALTER TABLE movie_credits
+                ADD FULLTEXT idx_character_name (character_name);
+            """)
+            conn.commit()
+            print("FULLTEXT index on 'movie_credits.character_name' created successfully.")
+        except Error as e:
+            print(f"Error creating FULLTEXT index on movie_credits.character_name: {e}")
 
-# 3. movie
-try:
-    cursor.execute("""
-        CREATE TABLE movie (
-            movie_id                INT AUTO_INCREMENT PRIMARY KEY,
-            title                   VARCHAR(255) NOT NULL,
-            release_date            DATE,
-            production_company_id   INT,
-            country_id              INT,
-            runtime_minutes         INT,
-            budget                  DECIMAL(15,2),
-            box_office              DECIMAL(15,2),
-            average_rating          DECIMAL(3,2),
-            rating_count            INT,
-            total_tickets_sold      INT,
-            CONSTRAINT fk_movie_production_company
-                FOREIGN KEY (production_company_id)
-                REFERENCES production_company(production_company_id)
-                ON DELETE SET NULL
-                ON UPDATE CASCADE,
-            CONSTRAINT fk_movie_country
-                FOREIGN KEY (country_id)
-                REFERENCES country(country_id)
-                ON DELETE SET NULL
-                ON UPDATE CASCADE
-        )
-    """)
-    print("Table 'movie' created successfully.")
-except mysql.connector.Error as err:
-    if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-        print("Table 'movie' already exists.")
-    else:
-        raise
+        conn.commit()
+        print("All relevant tables (with minimal columns) have been created successfully.")
 
-# 4. actor
-try:
-    cursor.execute("""
-        CREATE TABLE actor (
-            actor_id       INT AUTO_INCREMENT PRIMARY KEY,
-            first_name     VARCHAR(100) NOT NULL,
-            last_name      VARCHAR(100) NOT NULL,
-            date_of_birth  DATE,
-            nationality    VARCHAR(100),
-            gender         ENUM('Male', 'Female', 'Other') NOT NULL,
-            total_movies   INT DEFAULT 0,
-            awards_won     INT DEFAULT 0
-        )
-    """)
-    print("Table 'actor' created successfully.")
-except mysql.connector.Error as err:
-    if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-        print("Table 'actor' already exists.")
-    else:
-        raise
+    except Error as e:
+        print(f"Database error: {e}")
+    except Exception as ex:
+        print(f"General error: {ex}")
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if conn is not None and conn.is_connected():
+            conn.close()
+            print("MySQL connection is closed.")
 
-# 5. movie_actor (join table for many-to-many relationship)
-try:
-    cursor.execute("""
-        CREATE TABLE movie_actor (
-            movie_id INT NOT NULL,
-            actor_id INT NOT NULL,
-            role     VARCHAR(255),
-            PRIMARY KEY (movie_id, actor_id),
-            CONSTRAINT fk_movie_actor_movie
-                FOREIGN KEY (movie_id)
-                REFERENCES movie(movie_id)
-                ON DELETE CASCADE
-                ON UPDATE CASCADE,
-            CONSTRAINT fk_movie_actor_actor
-                FOREIGN KEY (actor_id)
-                REFERENCES actor(actor_id)
-                ON DELETE CASCADE
-                ON UPDATE CASCADE
-        )
-    """)
-    print("Table 'movie_actor' created successfully.")
-except mysql.connector.Error as err:
-    if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-        print("Table 'movie_actor' already exists.")
-    else:
-        raise
 
-# Create an index on the movie table for faster lookup of production_company_id
-try:
-    cursor.execute("""
-        CREATE INDEX idx_movie_production_company 
-        ON movie(production_company_id)
-    """)
-    print("Index 'idx_movie_production_company' created successfully.")
-except mysql.connector.Error as err:
-    if err.errno == errorcode.ER_DUP_KEYNAME:
-        print("Index 'idx_movie_production_company' already exists.")
-    else:
-        print(f"Error creating index: {err}")
-
-# Create FULLTEXT index on the title column of the movie table
-try:
-    cursor.execute("""
-        CREATE FULLTEXT INDEX idx_movie_title ON movie(title);
-    """)
-    print("Index 'idx_movie_title' created successfully.")
-
-except mysql.connector.Error as err:
-    if err.errno == errorcode.ER_DUP_KEYNAME:
-        print("Index 'idx_movie_title' already exists.")
-    else:
-        print(f"Error creating index: {err}")
-
-# Create index on production_company.name
-try:
-    cursor.execute("""
-        CREATE INDEX idx_production_company_name ON production_company(name);
-    """)
-    print("Index 'idx_production_company_name' created successfully.")
-
-except mysql.connector.Error as err:
-    if err.errno == errorcode.ER_DUP_KEYNAME:
-        print("Index 'idx_production_company_name' already exists.")
-    else:
-        print(f"Error creating index: {err}")
-
-cursor.close()
-mydb.close()
+if __name__ == '__main__':
+    create_db()

@@ -1,97 +1,147 @@
+"""
+api_data_retrieve.py
+
+A utility module for interacting with The Movie Database (TMDb) API.
+Fetches genres, movies, images, and credits information using a Bearer token
+loaded from environment variables.
+"""
+
 import requests
-import mysql.connector
-from common import headers, VALID_TABLES, DATABASE_NAME
+from common import headers
 
-#Every function <funcX> is responsiable to populate one table
-#Example to how insert: https://www.w3schools.com/python/python_mysql_insert.asp
+# Base URL for the TMDb API
+BASE_URL = 'https://api.themoviedb.org/3'
 
-
-mydb = mysql.connector.connect(
-    host="127.0.0.2",
-    port="3333",
-    user="natanel",
-    password="nat72836",
-    database={DATABASE_NAME}
-)
-
-
-def func0(headers):
-    url = "someurl"
-
-    response = requests.get(url, headers=headers)
-    print(response.text)
-
-
-def func1(headers):
-    url = "someurl"
-
-    response = requests.get(url, headers=headers)
-    print(response.text)
-
-
-def func2(headers):
-    url = "someurl"
-
-    response = requests.get(url, headers=headers)
-    print(response.text)
-
-def func3(headers):
-    url = "someurl"
-
-    response = requests.get(url, headers=headers)
-    print(response.text)
-
-def func4(headers):
-    url = "someurl"
-
-    response = requests.get(url, headers=headers)
-    print(response.text)
-
-
-def insert_multiple_records(table_name, data_rows):
+def get_all_genres():
     """
-    Insert multiple records into a valid table from our allow list.
-    
-    :param table_name: Name of the table to insert the data
-    :param data_rows: A list of tuples, where each tuple represents one row of data
+    Fetch all movie genres from TMDb.
+
+    Endpoint: GET /genre/movie/list
+
+    :return: A JSON object containing genres data.
+    :rtype: dict
+    :raises HTTPError: If the request status code is 4xx or 5xx.
     """
-
-    #Prevent SQL injection by checking that the table name is valid using a whitelist
-    # 1) Ensure the table is in the allow list
-    if table_name not in VALID_TABLES:
-        raise ValueError(f"Table '{table_name}' is not in the allow list and cannot be used.")
-
-    # 2) Get the columns from our allow list
-    columns = VALID_TABLES[table_name]
-    
-    # 4) For columns, we simply join them as plain text (per your request)
-    #    Because they come from our strict VALID_TABLES, we assume they're safe.
-    columns_str = ", ".join(columns)
-
-    # 5) Create placeholders for each column
-    placeholders = ", ".join(["%s"] * len(columns))
-    
-    # 6) Build the final INSERT statement
-    insert_query = (
-        f"INSERT INTO {table_name} ({columns_str}) "
-        f"VALUES ({placeholders})"
-    )
-    
-    # 7) Execute the insert
-    cursor = mydb.cursor()
-    cursor.executemany(insert_query, data_rows)
-    mydb.commit()
-
-    print(f"{cursor.rowcount} records inserted into table '{table_name}'.")
-    cursor.close()
+    url = f"{BASE_URL}/genre/movie/list"
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
 
 
-def main(): 
-    print("hi")
-    insert_multiple_records("new_table_test", [("11", "John", "2021-08-09"), ("21", "Peter", "2021-08-09"), ("31", "Amy", "2021-08-09"), ("4", "Hannah", "2021-08-09"), ("15", "Michael", "2021-08-09")])
+def get_movies_by_genre(genre_id):
+    """
+    Fetch movies filtered by a specific genre.
+
+    Endpoint: GET /discover/movie?with_genres=<genre_id>
+
+    :param genre_id: The genre ID (int or str) to filter by.
+    :return: A JSON object containing the matching movies.
+    :rtype: dict
+    :raises HTTPError: If the request status code is 4xx or 5xx.
+    """
+    url = f"{BASE_URL}/discover/movie"
+    params = {"with_genres": str(genre_id)}
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+    return response.json()
 
 
-if __name__ == "__main__":
-    main()
+def get_movies_by_page(page):
+    """
+    Fetch popular movies by page.
+
+    Endpoint: GET /movie/popular?page=<page>
+
+    :param page: The page number (int).
+    :return: A JSON object containing popular movies for the given page.
+    :rtype: dict
+    :raises HTTPError: If the request status code is 4xx or 5xx.
+    """
+    url = f"{BASE_URL}/movie/popular"
+    params = {"page": str(page)}
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+    return response.json()
 
 
+def get_movie_by_id(movie_id):
+    """
+    Fetch movie details by its ID.
+
+    Endpoint: GET /movie/<movie_id>
+
+    :param movie_id: The movie's ID (int or str).
+    :return: A JSON object containing the movie details.
+    :rtype: dict
+    :raises HTTPError: If the request status code is 4xx or 5xx.
+    """
+    url = f"{BASE_URL}/movie/{movie_id}"
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+
+def get_movie_images(movie_id):
+    """
+    Fetch all images for a specific movie.
+
+    Endpoint: GET /movie/<movie_id>/images
+
+    :param movie_id: The movie's ID (int or str).
+    :return: A JSON object containing image details.
+    :rtype: dict
+    :raises HTTPError: If the request status code is 4xx or 5xx.
+    """
+    url = f"{BASE_URL}/movie/{movie_id}/images"
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+
+def get_movie_credits(movie_id):
+    """
+    Fetch cast and crew information for a specific movie.
+
+    Endpoint: GET /movie/<movie_id>/credits
+
+    :param movie_id: The movie's ID (int or str).
+    :return: A JSON object containing cast and crew details.
+    :rtype: dict
+    :raises HTTPError: If the request status code is 4xx or 5xx.
+    """
+    url = f"{BASE_URL}/movie/{movie_id}/credits"
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+
+# Quick Testing
+if __name__ == '__main__':
+    try:
+        # Fetch all genres
+        genres = get_all_genres()
+        print("Genres:", genres)
+
+        # Fetch movies by genre
+        genre_id = 28  # Action genre
+        movies = get_movies_by_genre(genre_id)
+        print("\nMovies in the Action genre:", movies)
+
+        # Fetch popular movies by page
+        page_number = 2
+        popular_movies = get_movies_by_page(page_number)
+        print("\nPopular Movies (Page 2):", popular_movies)
+
+        # Fetch movie details
+        movie_id = 550  # Movie: Fight Club
+        movie_details = get_movie_by_id(movie_id)
+        print("\nMovie Details:", movie_details)
+
+        # Fetch credits for a movie
+        credits = get_movie_credits(movie_id)
+        print("\nMovie Credits:", credits)
+
+    except requests.exceptions.HTTPError as http_err:
+        print(f"HTTP error occurred: {http_err}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
