@@ -1,8 +1,6 @@
 import mysql.connector
 from mysql.connector import Error
-from contextlib import redirect_stdout
 from common import DATABASE_NAME
-import sys
 
 def get_db_connection():
     """
@@ -21,15 +19,6 @@ def get_db_connection():
     except Error as e:
         print(f"Error connecting to DB: {e}")
         return None
-
-# ------------------------------------------------------------------------------
-# QUERY #1 (Complex):
-#  Find the single most popular movie (highest popularity),
-#  then list the top 10 most popular actors (type='cast') in that movie,
-#  sorted by the actors' popularity (descending).
-#
-#  Output columns: movie_title, actor_name, actor_popularity
-# ------------------------------------------------------------------------------
 
 
 def query_1():
@@ -76,15 +65,6 @@ def query_1():
     finally:
         cursor.close()
         conn.close()
-
-# ------------------------------------------------------------------------------
-# QUERY #2 (Complex):
-#  For each genre, return:
-#    - the total number of movies in that genre
-#    - the single most popular movie (by popularity) in that genre
-#
-#  Output columns: genre_name, movie_count, most_popular_movie
-# ------------------------------------------------------------------------------
 
 
 def query_2():
@@ -133,17 +113,6 @@ def query_2():
         cursor.close()
         conn.close()
 
-# ------------------------------------------------------------------------------
-# QUERY #3 (Full-Text):
-#  Search movie titles for a given substring (e.g., "Batman") using FULLTEXT.
-#  Return matching movies, sorted by popularity (descending).
-#  Limit to top 10 for demonstration.
-#
-#  Make sure you have a FULLTEXT index on movies.title!
-#
-#  Output columns: id, title, popularity
-# ------------------------------------------------------------------------------
-
 
 def query_3(substring):
     """
@@ -168,14 +137,14 @@ def query_3(substring):
         sql = """
             SELECT id, title, popularity
             FROM movies
-            WHERE MATCH(title) AGAINST (%s IN BOOLEAN MODE)
+            WHERE title LIKE %s
             ORDER BY popularity DESC
             LIMIT 10;
         """
-        # Example: if substring = "Batman", pass "Batman*" to catch partial matches
-        search_term = substring.strip() + "*"
+        # Build a '%substring%' pattern
+        search_pattern = f"%{substring.strip()}%"
 
-        cursor.execute(sql, (search_term,))
+        cursor.execute(sql, (search_pattern,))
         results = cursor.fetchall()
         return results
 
@@ -204,14 +173,12 @@ def query_4(substring):
             SELECT DISTINCT m.id, m.title
             FROM movie_credits mc
             JOIN movies m ON mc.movie_id = m.id
-            WHERE MATCH(mc.character_name_or_job_title) AGAINST (%s IN BOOLEAN MODE)
+            WHERE mc.character_name_or_job_title LIKE %s
             LIMIT 100;
         """
-        
-        # Example: to allow partial matches, append an asterisk for Boolean Mode
-        search_term = substring.strip() + "*"
-        
-        cursor.execute(sql, (search_term,))
+
+        search_pattern = f"%{substring.strip()}%"
+        cursor.execute(sql, (search_pattern,))
         results = cursor.fetchall()
 
     except Error as e:
@@ -265,51 +232,3 @@ def query_5(min_popularity: int):
             cursor.close()
         if conn and conn.is_connected():
             conn.close()
-
-
-def main():
-    # Query #1: Single most popular movie -> top 10 most popular cast
-    print("\n--- Query #1 Demo ---")
-    res1 = query_1()
-    print(f"Found {len(res1)} rows for query_1:")
-    for row in res1:
-        print(row)
-
-    # Query #2: For each genre: (genre_name, movie_count, most_popular_movie)
-    print("\n--- Query #2 Demo ---")
-    res2 = query_2()
-    print(f"Found {len(res2)} rows for query_2:")
-    for row in res2[:5]:  # just show first 5 for demo
-        print(row)
-
-    # Query #3: Full-text search in movies.title
-    print("\n--- Query #3 Demo ---")
-    demo_substring_3 = "Batman"  # example substring
-    res3 = query_3(demo_substring_3)
-    print(f"Found {len(res3)} rows for query_3 (search = '{demo_substring_3}'):")
-    for row in res3:
-        print(row)
-
-    # Query #4: Full-text search in movie_credits.character_name_or_job_title
-    print("\n--- Query #4 Demo ---")
-    demo_substring_4 = "Robin"  # example substring
-    res4 = query_4(demo_substring_4)
-    print(f"Found {len(res4)} rows for query_4 (search = '{demo_substring_4}'):")
-    for row in res4:
-        print(row)
-
-    # Query #5: Movies with at least one cast member whose popularity > min_popularity
-    print("\n--- Query #5 Demo ---")
-    min_pop = 10
-    res5 = query_5(min_pop)
-    print(f"Found {len(res5)} rows for query_5 (popularity > {min_pop}):")
-    for row in res5[:5]:  # just show first 5 for demo
-        print(row)
-
-
-if __name__ == '__main__':
-    # Simple redirection trick to also capture output if needed:
-    # with open('demo_output.txt', 'w') as f, redirect_stdout(f):
-    #     main()
-    
-    main()

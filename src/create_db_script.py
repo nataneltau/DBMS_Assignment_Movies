@@ -33,16 +33,6 @@ def create_db():
         # 3) Use the newly created or existing database
         cursor.execute(f"USE {DATABASE_NAME};")
 
-        # ---------------------------------------------------------------------
-        # TABLE: movies
-        #
-        #  Used in queries:
-        #   - Query #1: SELECT m.title, m.popularity, ...
-        #   - Query #2: SELECT m.id, m.popularity, ...
-        #   - Query #3: FULLTEXT on m.title
-        #   - Query #5: SELECT m.id, m.title
-        #  Relevant columns: id, title, popularity
-        # ---------------------------------------------------------------------
         print("Creating 'movies' table...")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS movies (
@@ -53,11 +43,6 @@ def create_db():
         """)
         print("'movies' table created or already exists.")
 
-        # ---------------------------------------------------------------------
-        # TABLE: genres
-        #
-        #  Used in query #2: SELECT g.id, g.name
-        # ---------------------------------------------------------------------
         print("Creating 'genres' table...")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS genres (
@@ -67,16 +52,6 @@ def create_db():
         """)
         print("'genres' table created or already exists.")
 
-        # ---------------------------------------------------------------------
-        # TABLE: movie_genres
-        #
-        #  Used in query #2 to join movies and genres:
-        #   SELECT ... FROM genres g
-        #   JOIN movie_genres mg ON mg.genre_id = g.id
-        #   JOIN movies m ON m.id = mg.movie_id
-        #
-        #  Relevant columns: movie_id, genre_id
-        # ---------------------------------------------------------------------
         print("Creating 'movie_genres' table...")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS movie_genres (
@@ -89,14 +64,6 @@ def create_db():
         """)
         print("'movie_genres' table created or already exists.")
 
-        # ---------------------------------------------------------------------
-        # TABLE: persons
-        #
-        #  Used in queries:
-        #   - Query #1: SELECT p.id, p.name, p.popularity
-        #   - Query #5: SELECT p.popularity
-        #  Relevant columns: id, name, popularity
-        # ---------------------------------------------------------------------
         print("Creating 'persons' table...")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS persons (
@@ -107,17 +74,6 @@ def create_db():
         """)
         print("'persons' table created or already exists.")
 
-        # ---------------------------------------------------------------------
-        # TABLE: movie_credits
-        #
-        #  Used in queries:
-        #   - Query #1: movie_id, person_id, type='cast'
-        #   - Query #4: FULLTEXT on character_name_or_job_title
-        #   - Query #5: EXISTS(...) type='cast' and p.popularity>10
-        #
-        #  Relevant columns: movie_id, person_id, type, character_name_or_job_title
-        #  (We omit credit_id, department, job, etc. since not used by queries.)
-        # ---------------------------------------------------------------------
         print("Creating 'movie_credits' table...")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS movie_credits (
@@ -131,17 +87,6 @@ def create_db():
         """)
         print("'movie_credits' table created or already exists.")
 
-
-        # ---------------------------------------------------------------------
-        # Create only the necessary FULLTEXT indexes
-        #
-        #  1) For query_3 on movies.title
-        #  2) For query_4 on movie_credits.character_name_or_job_title
-        #
-        #  We do not create any extra indexes (e.g. on popularity)
-        #  unless they are needed for a specific FULLTEXT or performance reason.
-        # ---------------------------------------------------------------------
-
         # 1) FULLTEXT index on movies.title
         try:
             cursor.execute("""
@@ -151,9 +96,6 @@ def create_db():
             conn.commit()
             print("FULLTEXT index on 'movies.title' created successfully.")
         except Error as e:
-            # Error 1061 = duplicate key name
-            # Error 1795 = InnoDB doesn't support if columns are not the right format
-            # etc.
             print(f"Error creating FULLTEXT index on movies.title: {e}")
 
         # 2) FULLTEXT index on movie_credits.character_name_or_job_title
